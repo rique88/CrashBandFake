@@ -1,20 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerManager : MonoBehaviour
 {
-    public static PlayerManager instance;
-
-    private PlayerMovementComponet movementComponent;
-
-    private PlayerControls playerControl;
-
+    public static event Action<InputAction.CallbackContext, float> HandleMoveInput;
+    public static event Action<bool> HandleJumpInput;
 
     private Transform playerTransform;
-    private CharacterController characterController;
     private bool isJumping;
     private bool isMoving;
 
@@ -22,56 +15,31 @@ public class PlayerManager : MonoBehaviour
     [SerializeField] private float velocity = 10;
     [SerializeField] private int lives = 1;
 
-
     private void Awake()
     {
-        #region sigleton 
-        if (instance == null)
-        {
-            instance = this;
-        }
-        else
-        {
-            Destroy(this.gameObject);
-        }
-        #endregion
+        PlayerManagerSetUpListenerns();
+    }
 
-        movementComponent = GetComponent<PlayerMovementComponet>();
-        playerTransform = GetComponent<Transform>();
-        InputManager.onMove += MovePlayer;
+    private void PlayerManagerSetUpListenerns()
+    {
+        GameSystem.OnMoveInputContextReceived += MovePlayer;
+        GameSystem.OnJumpInputContextReceived += JumpPlayer;
+    }
 
-
+    private void JumpPlayer(bool isJumpPressed)
+    {
+        HandleJumpInput?.Invoke(isJumpPressed);
     }
 
     private void MovePlayer(InputAction.CallbackContext context)
     {
-        movementComponent.MovePlayer(context);
+        isMoving = context.ReadValue<Vector2>().x != 0 || context.ReadValue<Vector2>().y != 0;
+        HandleMoveInput?.Invoke(context, velocity);
     }
 
-
-    public bool GetIsMoving()
+    private void OnDisable()
     {
-        return isMoving;
+        GameSystem.OnMoveInputContextReceived -= MovePlayer;
     }
 
-    public void SetIsMoving(bool isMoving)
-    {
-        this.isMoving = isMoving;
-    }
-
-    public float GetPlayerVelocity()
-    {
-        return velocity;
-    }
-
-    public float GetCurrentVelocity()
-    {
-        return characterController.velocity.magnitude;
-    }
-
-    
-    // private void OnDisable()
-    // {
-    //  InputManager.onMove -= MovePlayer;
-    // }
 }
