@@ -5,11 +5,15 @@ using UnityEngine.InputSystem;
 public class PlayerManager : MonoBehaviour
 {
     public static event Action<InputAction.CallbackContext, float> HandleMoveInput;
-    public static event Action<bool> HandleJumpInput;
+    public static event Action<bool, int> HandleJumpInput;
+    public static event Action<bool> HandleAttackInput; 
 
-    private Transform playerTransform;
-    private bool isJumping;
-    private bool isMoving;
+    //Delegate para pegar e passar a refer�ncia do character controller
+    //(est� sendo assinada dentro do PlayerMovementComponent)
+    public delegate CharacterController CharacterControllerReference();
+    public static CharacterControllerReference _characterControllerReference;
+
+    private int numberOfJumps = 0;
 
     [SerializeField] private float jumpHeight = 10;
     [SerializeField] private float velocity = 10;
@@ -22,24 +26,31 @@ public class PlayerManager : MonoBehaviour
 
     private void PlayerManagerSetUpListenerns()
     {
-        GameSystem.OnMoveInputContextReceived += MovePlayer;
-        GameSystem.OnJumpInputContextReceived += JumpPlayer;
+        GameSystem.OnMoveInputContextReceived += HandleMove;
+        GameSystem.OnJumpInputContextReceived += HandleJump;
+        GameSystem.OnAttackInputContextReceived += HandleAttack;
     }
 
-    private void JumpPlayer(bool isJumpPressed)
+    private void HandleJump(bool isJumpPressed)
     {
-        HandleJumpInput?.Invoke(isJumpPressed);
+        CharacterController tempController = _characterControllerReference?.Invoke();
+        if (tempController.isGrounded == true) numberOfJumps = 0;
+        if (isJumpPressed) numberOfJumps++;
+        HandleJumpInput?.Invoke(isJumpPressed, numberOfJumps);
     }
 
-    private void MovePlayer(InputAction.CallbackContext context)
+    private void HandleMove(InputAction.CallbackContext context)
     {
-        isMoving = context.ReadValue<Vector2>().x != 0 || context.ReadValue<Vector2>().y != 0;
         HandleMoveInput?.Invoke(context, velocity);
+    }
+    
+    private void HandleAttack(bool isAttacking)
+    {
+        HandleAttackInput?.Invoke(isAttacking);
     }
 
     private void OnDisable()
     {
-        GameSystem.OnMoveInputContextReceived -= MovePlayer;
+        GameSystem.OnMoveInputContextReceived -= HandleMove;
     }
-
 }

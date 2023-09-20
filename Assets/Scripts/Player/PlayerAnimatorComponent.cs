@@ -4,23 +4,43 @@ using UnityEngine;
 public class PlayerAnimatorComponent : MonoBehaviour
 {
     private Animator animator;
+
+#region Varaibles: AnimationsHash
     private int isJumpingHash;
     private int velocityHash;
+    private int numberOfJumpsHash;
+    private int isAttackingHash;
+    #endregion
+
+    private int numberOfJumps;
     public bool isJumping;
-    private CharacterController characterController;
-    float currentVelocity;
+
+    float currentVelocity = 0;
     private void Awake()
     {
-        characterController = GetComponent<CharacterController>();
         PlayerManager.HandleJumpInput += HandleJumpTrigger;
+        PlayerManager.HandleAttackInput += AttackHandler;
 
         animator = GetComponent<Animator>();
-        isJumpingHash = Animator.StringToHash("isJumping");
-        velocityHash = Animator.StringToHash("velocity");
+        GetAnimatorParameters();
     }
 
-    private void HandleJumpTrigger(bool jumpInputPressed)
+    private void AttackHandler(bool isAttacking)
     {
+        if (isAttacking && animator.GetBool(isAttackingHash) == false)
+        {
+            animator.SetBool(isAttackingHash, true);
+        }
+        else if (!isAttacking && animator.GetBool(isAttackingHash))
+        {
+            animator.SetBool(isAttackingHash, false);
+        }
+    }
+
+    private void HandleJumpTrigger(bool jumpInputPressed, int numberOfJumps)
+    {
+        print(numberOfJumps);
+        if (jumpInputPressed) this.numberOfJumps = numberOfJumps;
         isJumping = jumpInputPressed;
     }
 
@@ -32,14 +52,22 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private void AnimationHandler()
     {
         bool isJumpingAnimation = animator.GetBool(isJumpingHash);
-        currentVelocity = characterController.velocity.magnitude;
-        animator.SetFloat(velocityHash, currentVelocity);
+        CharacterController tempController = PlayerManager._characterControllerReference?.Invoke();
+        currentVelocity = tempController.velocity.magnitude;
 
-        if (isJumping && !isJumpingAnimation && characterController.isGrounded)
+        animator.SetFloat(velocityHash, currentVelocity);
+        animator.SetInteger(numberOfJumpsHash, numberOfJumps);
+
+        if (tempController.isGrounded || animator.GetInteger(numberOfJumpsHash) > 2)
+        {
+            animator.SetInteger(numberOfJumpsHash, 0);            
+        }
+
+        if (isJumping && !isJumpingAnimation && tempController.isGrounded)
         {
             animator.SetBool(isJumpingHash, true);
         }
-        else if (!isJumping && isJumpingAnimation)
+        else if (isJumpingAnimation || tempController.isGrounded)
         {
             animator.SetBool(isJumpingHash, false);
         }
@@ -49,5 +77,7 @@ public class PlayerAnimatorComponent : MonoBehaviour
     {
         isJumpingHash = Animator.StringToHash("isJumping");
         velocityHash = Animator.StringToHash("velocity");
+        numberOfJumpsHash = Animator.StringToHash("numberOfJumps");
+        isAttackingHash = Animator.StringToHash("isAttacking");
     }
 }
